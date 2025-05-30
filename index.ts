@@ -2,7 +2,7 @@ import { KiteConnect } from "kiteconnect";
 
 const apiKey = "lq8i0m3my25elb9a";
 const apiSecret = "ghlomv5fpzjk3xyuc16cxg2j7wzghqzp";
-const requestToken = "57nJKdIZ1xF6LPOS7DaJWLkwPObOxQdk";
+const requestToken = "5lTlKYHa2XhTWQthsdAodfF4b6sS87B3";
 
 const kc = new KiteConnect({ api_key: apiKey });
 
