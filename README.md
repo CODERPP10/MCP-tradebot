@@ -1,5 +1,11 @@
 # mcp-tradebot
 
+
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/CODERPP10/MCP-tradebot)
+
+
+
+
 To install dependencies:
 
 ```bash
