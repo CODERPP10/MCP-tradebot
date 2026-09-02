@@ -1,0 +1,28 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.83"
+license = "MIT"
+repository = "https://github.com/CODERPP10/MCP-tradebot"
+
+[workspace.dependencies]
+domain = { path = "crates/domain" }
+kite-client = { path = "crates/kite-client" }
+secret-store = { path = "crates/secret-store" }
+session = { path = "crates/session" }
+ledger = { path = "crates/ledger" }
+guardrails = { path = "crates/guardrails" }
+engine = { path = "crates/engine" }
+telegram-confirm = { path = "crates/telegram-confirm" }
+
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+toml = "0.8"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
