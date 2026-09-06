@@ -11,6 +11,8 @@ use guardrails::Policy;
 
 mod home;
 mod init;
+mod login;
+mod prompt;
 
 #[derive(Parser)]
 #[command(
@@ -32,7 +34,11 @@ enum Command {
         home: Option<PathBuf>,
     },
     /// Print the Kite login URL and accept a pasted request token.
-    Login,
+    Login {
+        /// Data directory (overrides $TRADEBOT_HOME; default ./.tradebot).
+        #[arg(long)]
+        home: Option<PathBuf>,
+    },
     /// Token validity, kill-switch state, today's ledger aggregates.
     Status,
     /// Engage the kill switch (rejects everything mutating).
@@ -79,6 +85,13 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Command::Login { home } => match login::run(home) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(err) => {
+                eprintln!("login failed: {err:#}");
+                ExitCode::FAILURE
+            }
+        },
         Command::Policy {
             action: PolicyAction::Check { file },
         } => match Policy::load(&file) {
@@ -106,7 +119,7 @@ impl Command {
     fn name(&self) -> &'static str {
         match self {
             Command::Init { .. } => "init",
-            Command::Login => "login",
+            Command::Login { .. } => "login",
             Command::Status => "status",
             Command::Kill => "kill",
             Command::Resume => "resume",

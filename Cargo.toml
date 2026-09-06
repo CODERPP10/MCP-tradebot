@@ -37,6 +37,8 @@ rand = "0.8"
 base64 = "0.22"
 tempfile = "3"
 rpassword = "7"
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
+async-trait = "0.1"
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }

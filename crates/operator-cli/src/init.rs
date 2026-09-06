@@ -1,7 +1,6 @@
 //! `tradebot init` — create the sealed store and seal the operator's
 //! credentials into it (DESIGN.md §2.9).
 
-use std::io::{self, IsTerminal, Write};
 use std::path::PathBuf;
 
 use anyhow::{bail, Context, Result};
@@ -11,6 +10,7 @@ use secret_store::{
 };
 
 use crate::home;
+use crate::prompt::{read_hidden, read_line};
 
 const MIN_PASSPHRASE_LEN: usize = 8;
 
@@ -65,37 +65,6 @@ pub fn run(explicit_home: Option<PathBuf>) -> Result<()> {
     );
     println!("Next: `tradebot login` each trading morning to seal a fresh access token.");
     Ok(())
-}
-
-/// Read one hidden value. On an interactive terminal the input is not echoed
-/// (`rpassword`); when stdin is a pipe (scripts, CI) a plain line is read so
-/// `init` stays automatable.
-fn read_hidden(label: &str) -> Result<String> {
-    if io::stdin().is_terminal() {
-        Ok(rpassword::prompt_password(format!("{label}: "))?)
-    } else {
-        read_line_raw(label)
-    }
-}
-
-fn read_line(label: &str) -> Result<String> {
-    let s = read_line_raw(label)?;
-    if s.is_empty() {
-        bail!("{label} must not be empty");
-    }
-    Ok(s)
-}
-
-fn read_line_raw(label: &str) -> Result<String> {
-    if io::stdin().is_terminal() {
-        print!("{label}: ");
-        io::stdout().flush()?;
-    }
-    let mut s = String::new();
-    if io::stdin().read_line(&mut s).context("reading stdin")? == 0 {
-        bail!("unexpected end of input while reading {label}");
-    }
-    Ok(s.trim().to_string())
 }
 
 fn read_new_passphrase() -> Result<String> {
