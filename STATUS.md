@@ -71,13 +71,14 @@ Follows `DESIGN.md` §9. Branch order:
 6. `feat/ledger` — SQLite schema, migrations, append/query API.
 7. `feat/guardrails` — policy engine + exhaustive unit tests (heaviest coverage).
 8. `feat/engine` (submit) — orchestration, reconciliation loop, `PaperExecutor`.
-8. `feat/telegram-confirm` — bot long-poll, inline buttons, nonce/TTL, fail-closed.
-9. `feat/mcp-server` — `rmcp` stdio server, tool schemas.
-10. `feat/operator-cli` — `status` / `kill` / `resume` / `ledger` / `reconcile` /
+9. `feat/telegram-confirm` — bot long-poll, inline buttons, nonce/TTL, fail-closed.
+10. `feat/mcp-server` (write) — `place_equity_order` / `cancel_order` tools.
+11. `feat/operator-cli` — `status` / `kill` / `resume` / `ledger` / `reconcile` /
     `confirm` / `reject`.
-11. `integration/mvp` — end-to-end paper-mode test, then → `main`.
+12. `integration/mvp` — end-to-end paper-mode test, then → `main`.
 
-3–6 can proceed in parallel after 1. 7 depends on 2/4/5/6. 8–10 depend on 7.
+Demo-first slice reorders this: 5 (reads) landed before ledger/guardrails so
+Milestone A ships first. 8 depends on 6/7; 9–11 depend on 8.
 
 ## Immediate blockers / setup needed
 
