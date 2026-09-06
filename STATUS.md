@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-09-02_
+_Last updated: 2026-09-06_
 
 ## Where things stand
 
@@ -35,10 +35,15 @@ rewrite; this document tracks execution state.
 
 Follows `DESIGN.md` §9. Branch order:
 
-1. **`feat/workspace-skeleton`** — _in progress._ Cargo workspace, crate stubs,
+1. **`feat/workspace-skeleton`** — _done_ (PR #1). Cargo workspace, crate stubs,
    CI (fmt / clippy / test), `policy.toml` schema + `tradebot policy check`,
    domain types (`Money`, `Quantity`, `Side`, `OrderIntent`, `Decision`, `Reason`).
-2. `feat/kite-client` — REST client + typed models + fixture-based tests.
+2. **`feat/kite-client`** — _in progress._ Async REST client (`reqwest`/`rustls`):
+   auth header, `SHA256` session checksum, hand-rolled token-bucket rate limiter,
+   typed models, `KiteError` taxonomy, no logging / no retries. Methods:
+   `generate_session`, `place_order`, `cancel_order`, `orders`, `order_history`,
+   `positions`, `holdings`, `margins_equity`, `quote`, `ltp`, `profile`,
+   `instruments` (CSV). Tested against `wiremock` fixtures (no live calls).
 3. `feat/secret-store` — `SealedFileStore`, `tradebot init`.
 4. `feat/session-auth` — `TokenProvider` / `ManualPaste`, `tradebot login`.
 5. `feat/ledger` — SQLite schema, migrations, append/query API.

@@ -1,0 +1,14 @@
+{
+  "status": "success",
+  "data": {
+    "user_id": "AB1234",
+    "user_name": "Test User",
+    "user_shortname": "Test",
+    "email": "test@example.com",
+    "broker": "ZERODHA",
+    "access_token": "fixture_access_token_abc123",
+    "public_token": "fixture_public_token_xyz789",
+    "refresh_token": "",
+    "login_time": "2026-09-06 08:45:12"
+  }
+}

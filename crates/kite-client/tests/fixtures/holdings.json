@@ -1,0 +1,15 @@
+{
+  "status": "success",
+  "data": [
+    {
+      "tradingsymbol": "INFY",
+      "exchange": "NSE",
+      "isin": "INE009A01021",
+      "quantity": 10,
+      "t1_quantity": 0,
+      "average_price": 1400.0,
+      "last_price": 1512.4,
+      "pnl": 1124.0
+    }
+  ]
+}
