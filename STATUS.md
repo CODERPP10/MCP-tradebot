@@ -54,7 +54,9 @@ Follows `DESIGN.md` §9. Branch order:
 
 ## Immediate blockers / setup needed
 
-- **Rust toolchain not installed** on the dev machine. Install via
-  [rustup](https://rustup.rs/); the workspace pins its version in
-  `rust-toolchain.toml`. Until then, skeleton code is authored but unverified
-  (`cargo build` / `clippy` / `test` have not been run).
+- Rust toolchain installed (rustup, stable `1.98.1`, pinned in
+  `rust-toolchain.toml`). Skeleton verified: `cargo build` / `clippy -D warnings`
+  / `test` (11 pass) / `fmt --check` all green; `tradebot policy check` works.
+- Open the PR for `feat/workspace-skeleton` → `main` and set `main` as the
+  GitHub default branch + branch protection (gh CLI not installed).
+- BFG history scrub (owner: user, later).

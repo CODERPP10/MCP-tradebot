@@ -12,7 +12,7 @@ pub struct Money {
     paise: i64,
 }
 
-#[derive(Debug, thiserror::Error, PartialEq, Eq)]
+#[derive(Debug, thiserror::Error, PartialEq)]
 pub enum MoneyError {
     #[error("money arithmetic overflowed")]
     Overflow,
@@ -92,14 +92,23 @@ mod tests {
 
     #[test]
     fn from_rupees_f64_rejects_sub_paise() {
-        assert_eq!(Money::from_rupees_f64(10.005), Err(MoneyError::SubPaise(10.005)));
-        assert_eq!(Money::from_rupees_f64(10.5).unwrap(), Money::from_paise(1050));
+        assert_eq!(
+            Money::from_rupees_f64(10.005),
+            Err(MoneyError::SubPaise(10.005))
+        );
+        assert_eq!(
+            Money::from_rupees_f64(10.5).unwrap(),
+            Money::from_paise(1050)
+        );
     }
 
     #[test]
     fn order_value_uses_checked_arithmetic() {
         let px = Money::from_rupees(200);
         assert_eq!(px.checked_mul_qty(3).unwrap(), Money::from_rupees(600));
-        assert_eq!(Money::from_paise(i64::MAX).checked_mul_qty(2), Err(MoneyError::Overflow));
+        assert_eq!(
+            Money::from_paise(i64::MAX).checked_mul_qty(2),
+            Err(MoneyError::Overflow)
+        );
     }
 }

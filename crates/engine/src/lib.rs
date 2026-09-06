@@ -15,9 +15,17 @@ pub enum EngineError {
 
 #[derive(Debug, Clone)]
 pub enum SubmitOutcome {
-    Accepted { order_id: String, ref_id: String },
-    Pending { ref_id: String },
-    Rejected { ref_id: String, reasons: Vec<domain::Reason> },
+    Accepted {
+        order_id: String,
+        ref_id: String,
+    },
+    Pending {
+        ref_id: String,
+    },
+    Rejected {
+        ref_id: String,
+        reasons: Vec<domain::Reason>,
+    },
 }
 
 pub async fn submit(_intent: OrderIntent) -> Result<SubmitOutcome, EngineError> {

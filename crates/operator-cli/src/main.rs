@@ -10,7 +10,11 @@ use clap::{Parser, Subcommand};
 use guardrails::Policy;
 
 #[derive(Parser)]
-#[command(name = "tradebot", version, about = "Operator control for the MCP tradebot")]
+#[command(
+    name = "tradebot",
+    version,
+    about = "Operator control for the MCP tradebot"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -75,7 +79,10 @@ fn main() -> ExitCode {
             }
         },
         other => {
-            eprintln!("`{}` is not implemented yet (feat/operator-cli)", other.name());
+            eprintln!(
+                "`{}` is not implemented yet (feat/operator-cli)",
+                other.name()
+            );
             ExitCode::FAILURE
         }
     }
