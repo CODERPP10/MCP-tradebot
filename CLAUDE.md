@@ -12,8 +12,29 @@ TypeScript prototype was reference-only and is frozen on `archive/ts-prototype`
 
 ## Current state
 
-Pre-implementation. No cargo workspace exists yet. The immediate task is branch 1
-of `DESIGN.md` §9: `feat/workspace-skeleton`.
+`feat/workspace-skeleton` (DESIGN.md §9 branch 1) in progress: cargo workspace,
+crate stubs, CI, `policy.toml` + `tradebot policy check`, domain types. Most crates
+are stubs that return a `NotImplemented` error / fail closed.
+
+## Build & commands
+
+Rust workspace (edition 2021, toolchain pinned in `rust-toolchain.toml`). Install
+Rust via [rustup](https://rustup.rs/).
+
+- `cargo build --workspace`
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo fmt --all`
+- `cargo run -p operator-cli -- policy check` — validate `policy.toml`, print effective values
+- `cargo run -p operator-cli -- --help` — see all `tradebot` subcommands (most stubbed)
+
+## Workspace crates (`crates/`)
+
+`domain` (leaf: money/quantity/side/intent/decision) ← `guardrails` (policy engine,
+must NOT depend on kite-client/engine/mcp-server) ← `engine` (sole caller of
+kite-client mutating methods) ← `mcp-server` (bin `tradebot-mcp`) / `operator-cli`
+(bin `tradebot`). Also `kite-client`, `secret-store`, `session`, `ledger`,
+`telegram-confirm`.
 
 ## Branching
 

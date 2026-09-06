@@ -32,3 +32,12 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# Rust
+/target
+**/*.rs.bk
+
+# local operator state (never commit)
+*.sealed
+tradebot.db*
+nse_holidays_*.txt

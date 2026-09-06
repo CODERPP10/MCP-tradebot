@@ -1,0 +1,52 @@
+# Guardrail policy (DESIGN.md §7).
+#
+# Operator-owned. The MCP server process must NOT have write access to this file,
+# and there is no tool that edits it. Values below are PLACEHOLDERS — set real
+# numbers before running with `--live`.
+
+[kill_switch]
+# Runtime state lives in the ledger DB; this is a hard file-level override.
+force_engaged = false
+
+[instruments]
+exchange = "NSE"
+series = ["EQ"]
+symbol_allowlist = []              # empty = any resolvable NSE EQ symbol
+require_in_instrument_dump = true
+
+[order_shape]
+product = "CNC"
+variety = "regular"
+order_type = "LIMIT"
+validity = "DAY"
+
+[price]
+limit_price_band_pct = 3.0         # limit must be within +/-3% of LTP
+max_quote_age_secs = 15
+reject_at_circuit_limit = true
+
+[caps]
+max_order_value = 25000
+max_position_value_per_symbol = 50000
+max_orders_per_day = 10
+max_gross_notional_per_day = 100000
+max_new_capital_per_day = 50000
+min_seconds_between_orders = 30
+
+[margin]
+buffer = 5000
+
+[session]
+timezone = "Asia/Kolkata"
+open = "09:15"
+close = "15:30"
+holidays_file = "nse_holidays_2026.txt"
+
+[idempotency]
+window_secs = 300
+price_bucket_pct = 0.5
+
+[confirmation]
+confirm_all = true                 # v1: confirm every order
+confirm_above_value = 0
+confirm_ttl_secs = 120
