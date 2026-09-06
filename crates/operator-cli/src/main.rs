@@ -13,6 +13,7 @@ mod home;
 mod init;
 mod login;
 mod prompt;
+mod whoami;
 
 #[derive(Parser)]
 #[command(
@@ -35,6 +36,12 @@ enum Command {
     },
     /// Print the Kite login URL and accept a pasted request token.
     Login {
+        /// Data directory (overrides $TRADEBOT_HOME; default ./.tradebot).
+        #[arg(long)]
+        home: Option<PathBuf>,
+    },
+    /// Verify the sealed session with two read-only Kite calls.
+    Whoami {
         /// Data directory (overrides $TRADEBOT_HOME; default ./.tradebot).
         #[arg(long)]
         home: Option<PathBuf>,
@@ -92,6 +99,13 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Command::Whoami { home } => match whoami::run(home) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(err) => {
+                eprintln!("whoami failed: {err:#}");
+                ExitCode::FAILURE
+            }
+        },
         Command::Policy {
             action: PolicyAction::Check { file },
         } => match Policy::load(&file) {
@@ -120,6 +134,7 @@ impl Command {
         match self {
             Command::Init { .. } => "init",
             Command::Login { .. } => "login",
+            Command::Whoami { .. } => "whoami",
             Command::Status => "status",
             Command::Kill => "kill",
             Command::Resume => "resume",
