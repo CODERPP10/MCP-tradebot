@@ -11,7 +11,17 @@ name = "tradebot-mcp"
 path = "src/main.rs"
 
 [dependencies]
+domain = { workspace = true }
+engine = { workspace = true }
+kite-client = { workspace = true }
+secret-store = { workspace = true }
+session = { workspace = true }
 anyhow = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "io-std", "signal"] }
+rmcp = { version = "3", features = ["server", "macros", "schemars", "transport-io"] }
 
 [lints]
 workspace = true

@@ -12,7 +12,14 @@ guardrails = { workspace = true }
 kite-client = { workspace = true }
 ledger = { workspace = true }
 session = { workspace = true }
+serde = { workspace = true }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
+wiremock = { workspace = true }
+async-trait = { workspace = true }
+serde_json = { workspace = true }
 
 [lints]
 workspace = true

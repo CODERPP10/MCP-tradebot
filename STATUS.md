@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-09-06_
+_Last updated: 2026-09-07_
 
 ## Where things stand
 
@@ -60,9 +60,17 @@ Follows `DESIGN.md` §9. Branch order:
    `SharedSecretStore` (`Arc<Mutex<dyn SecretStore + Send>>`) + `shared()`.
    `tradebot login` wired (opens store, prints URL, seals token). Prompt helpers
    factored into `operator-cli/src/prompt.rs`.
-5. `feat/ledger` — SQLite schema, migrations, append/query API.
-6. `feat/guardrails` — policy engine + exhaustive unit tests (heaviest coverage).
-7. `feat/engine` — orchestration, reconciliation loop, `PaperExecutor`.
+5. **`feat/engine-reads`** — _in progress (demo-first slice, off `feat/session-auth`)._
+   `Engine` = `KiteClient` + `Arc<dyn TokenProvider>`. Six read services
+   (`positions/holdings/margins/orders/quote/order_status`), each authenticates
+   via `session` (→ `EngineError::NeedsLogin` when the token is stale) then
+   shapes one Kite read into a §5 view. `mcp-server`: `rmcp` 3.2 stdio server,
+   `tradebot-mcp serve --paper`, six read-only tools, passphrase from
+   `TRADEBOT_PASSPHRASE`. `--live` refused. `tradebot whoami` added on the prior
+   branch. **⇒ Milestone A** (Claude Desktop reads the live account).
+6. `feat/ledger` — SQLite schema, migrations, append/query API.
+7. `feat/guardrails` — policy engine + exhaustive unit tests (heaviest coverage).
+8. `feat/engine` (submit) — orchestration, reconciliation loop, `PaperExecutor`.
 8. `feat/telegram-confirm` — bot long-poll, inline buttons, nonce/TTL, fail-closed.
 9. `feat/mcp-server` — `rmcp` stdio server, tool schemas.
 10. `feat/operator-cli` — `status` / `kill` / `resume` / `ledger` / `reconcile` /
