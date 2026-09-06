@@ -44,7 +44,12 @@ Follows `DESIGN.md` §9. Branch order:
    `generate_session`, `place_order`, `cancel_order`, `orders`, `order_history`,
    `positions`, `holdings`, `margins_equity`, `quote`, `ltp`, `profile`,
    `instruments` (CSV). Tested against `wiremock` fixtures (no live calls).
-3. `feat/secret-store` — `SealedFileStore`, `tradebot init`.
+3. **`feat/secret-store`** — _in progress (demo-first slice, branched off
+   `feat/kite-client`)._ `SealedFileStore`: Argon2id-derived key,
+   per-record XChaCha20-Poly1305 with the record name as AEAD associated data,
+   verifier record for fast wrong-passphrase detection, atomic file replace,
+   0600 on unix, key zeroized on drop. `tradebot init` wired (hidden prompts on
+   a tty, piped stdin otherwise). `TRADEBOT_HOME` resolution.
 4. `feat/session-auth` — `TokenProvider` / `ManualPaste`, `tradebot login`.
 5. `feat/ledger` — SQLite schema, migrations, append/query API.
 6. `feat/guardrails` — policy engine + exhaustive unit tests (heaviest coverage).

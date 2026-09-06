@@ -9,6 +9,9 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand};
 use guardrails::Policy;
 
+mod home;
+mod init;
+
 #[derive(Parser)]
 #[command(
     name = "tradebot",
@@ -23,7 +26,11 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     /// Create the sealed store and prompt for credentials.
-    Init,
+    Init {
+        /// Data directory (overrides $TRADEBOT_HOME; default ./.tradebot).
+        #[arg(long)]
+        home: Option<PathBuf>,
+    },
     /// Print the Kite login URL and accept a pasted request token.
     Login,
     /// Token validity, kill-switch state, today's ledger aggregates.
@@ -65,6 +72,13 @@ enum PolicyAction {
 fn main() -> ExitCode {
     let cli = Cli::parse();
     match cli.command {
+        Command::Init { home } => match init::run(home) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(err) => {
+                eprintln!("init failed: {err:#}");
+                ExitCode::FAILURE
+            }
+        },
         Command::Policy {
             action: PolicyAction::Check { file },
         } => match Policy::load(&file) {
@@ -91,7 +105,7 @@ fn main() -> ExitCode {
 impl Command {
     fn name(&self) -> &'static str {
         match self {
-            Command::Init => "init",
+            Command::Init { .. } => "init",
             Command::Login => "login",
             Command::Status => "status",
             Command::Kill => "kill",
