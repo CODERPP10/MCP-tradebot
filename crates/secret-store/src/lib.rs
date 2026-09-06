@@ -8,7 +8,18 @@
 
 mod sealed_file;
 
+use std::sync::{Arc, Mutex};
+
 pub use sealed_file::{Argon2Params, SealedFileStore};
+
+/// A [`SecretStore`] shared across the engine, session layer, and CLI. `put`
+/// needs `&mut self`, so the shared handle is a `Mutex`.
+pub type SharedSecretStore = Arc<Mutex<dyn SecretStore + Send>>;
+
+/// Wrap a concrete store in a [`SharedSecretStore`].
+pub fn shared(store: impl SecretStore + Send + 'static) -> SharedSecretStore {
+    Arc::new(Mutex::new(store))
+}
 
 /// Well-known record keys held by the store.
 pub const KITE_API_KEY: &str = "kite_api_key";

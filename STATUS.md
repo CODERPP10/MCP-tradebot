@@ -50,7 +50,16 @@ Follows `DESIGN.md` §9. Branch order:
    verifier record for fast wrong-passphrase detection, atomic file replace,
    0600 on unix, key zeroized on drop. `tradebot init` wired (hidden prompts on
    a tty, piped stdin otherwise). `TRADEBOT_HOME` resolution.
-4. `feat/session-auth` — `TokenProvider` / `ManualPaste`, `tradebot login`.
+4. **`feat/session-auth`** — _in progress (demo-first slice, off
+   `feat/secret-store`)._ `TokenProvider` trait (async, `async-trait`) +
+   `ManualPaste`: `login_url()`, `complete_login(request_token)` →
+   `kite-client.generate_session` → seals `{access_token, issued_at,
+   assumed_invalid_after}` (JSON) under `kite_access_token`. `assumed_invalid_after`
+   = next 06:00 IST (chrono, fixed +05:30). `access_token()` → `Valid` while
+   inside the window, else `NeedsLogin { login_url }`. `secret-store` gained
+   `SharedSecretStore` (`Arc<Mutex<dyn SecretStore + Send>>`) + `shared()`.
+   `tradebot login` wired (opens store, prints URL, seals token). Prompt helpers
+   factored into `operator-cli/src/prompt.rs`.
 5. `feat/ledger` — SQLite schema, migrations, append/query API.
 6. `feat/guardrails` — policy engine + exhaustive unit tests (heaviest coverage).
 7. `feat/engine` — orchestration, reconciliation loop, `PaperExecutor`.
