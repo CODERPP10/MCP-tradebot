@@ -9,8 +9,10 @@ use serde::Deserialize;
 /// Every fallible `KiteClient` method returns this.
 #[derive(Debug, thiserror::Error)]
 pub enum KiteError {
-    /// Access token missing, expired, or rejected; or a permission error.
+    /// Access token missing, expired, or rejected (`TokenException` / HTTP 401).
     /// The session layer treats this as authoritative and surfaces `NeedsLogin`.
+    /// Permission/entitlement failures are `Rejected`, not this — re-login won't
+    /// fix them.
     #[error("authentication failed or token expired")]
     Auth,
     /// Kite's `TooManyRequestsException`, or a local rate-limiter rejection.
@@ -36,11 +38,19 @@ impl KiteError {
     /// operator but is never logged with request context.
     pub(crate) fn from_envelope(status: u16, error_type: Option<&str>, message: &str) -> Self {
         match error_type {
-            Some("TokenException" | "PermissionException" | "UserException") => KiteError::Auth,
+            // Only an expired/invalid access token is re-loginnable.
+            Some("TokenException") => KiteError::Auth,
             Some("TooManyRequestsException") => KiteError::RateLimited,
             Some("NetworkException") => KiteError::NetworkTimeout,
+            // Permission / entitlement problems (e.g. no market-data subscription
+            // for `/quote`) are terminal — a fresh login will not fix them, so
+            // surface Kite's message rather than prompting for re-auth.
             Some(
-                code @ ("OrderException" | "InputException" | "MarginException"
+                code @ ("PermissionException"
+                | "UserException"
+                | "OrderException"
+                | "InputException"
+                | "MarginException"
                 | "HoldingException"),
             ) => KiteError::Rejected {
                 code: code.to_string(),
@@ -82,4 +92,30 @@ pub(crate) struct ErrorBody {
     pub message: String,
     #[serde(default)]
     pub error_type: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn token_exception_is_reloginnable_auth() {
+        assert!(matches!(
+            KiteError::from_envelope(403, Some("TokenException"), "bad token"),
+            KiteError::Auth
+        ));
+    }
+
+    #[test]
+    fn permission_exception_is_terminal_and_keeps_the_message() {
+        // e.g. calling /quote without the market-data subscription
+        match KiteError::from_envelope(403, Some("PermissionException"), "insufficient permission")
+        {
+            KiteError::Rejected { code, message } => {
+                assert_eq!(code, "PermissionException");
+                assert_eq!(message, "insufficient permission");
+            }
+            other => panic!("expected Rejected, got {other:?}"),
+        }
+    }
 }
