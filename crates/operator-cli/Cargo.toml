@@ -12,8 +12,16 @@ path = "src/main.rs"
 
 [dependencies]
 guardrails = { workspace = true }
+secret-store = { workspace = true }
+session = { workspace = true }
+kite-client = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
+rpassword = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }
 
 [lints]
 workspace = true

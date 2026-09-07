@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-09-06_
+_Last updated: 2026-09-07_
 
 ## Where things stand
 
@@ -44,18 +44,41 @@ Follows `DESIGN.md` §9. Branch order:
    `generate_session`, `place_order`, `cancel_order`, `orders`, `order_history`,
    `positions`, `holdings`, `margins_equity`, `quote`, `ltp`, `profile`,
    `instruments` (CSV). Tested against `wiremock` fixtures (no live calls).
-3. `feat/secret-store` — `SealedFileStore`, `tradebot init`.
-4. `feat/session-auth` — `TokenProvider` / `ManualPaste`, `tradebot login`.
-5. `feat/ledger` — SQLite schema, migrations, append/query API.
-6. `feat/guardrails` — policy engine + exhaustive unit tests (heaviest coverage).
-7. `feat/engine` — orchestration, reconciliation loop, `PaperExecutor`.
-8. `feat/telegram-confirm` — bot long-poll, inline buttons, nonce/TTL, fail-closed.
-9. `feat/mcp-server` — `rmcp` stdio server, tool schemas.
-10. `feat/operator-cli` — `status` / `kill` / `resume` / `ledger` / `reconcile` /
+3. **`feat/secret-store`** — _in progress (demo-first slice, branched off
+   `feat/kite-client`)._ `SealedFileStore`: Argon2id-derived key,
+   per-record XChaCha20-Poly1305 with the record name as AEAD associated data,
+   verifier record for fast wrong-passphrase detection, atomic file replace,
+   0600 on unix, key zeroized on drop. `tradebot init` wired (hidden prompts on
+   a tty, piped stdin otherwise). `TRADEBOT_HOME` resolution.
+4. **`feat/session-auth`** — _in progress (demo-first slice, off
+   `feat/secret-store`)._ `TokenProvider` trait (async, `async-trait`) +
+   `ManualPaste`: `login_url()`, `complete_login(request_token)` →
+   `kite-client.generate_session` → seals `{access_token, issued_at,
+   assumed_invalid_after}` (JSON) under `kite_access_token`. `assumed_invalid_after`
+   = next 06:00 IST (chrono, fixed +05:30). `access_token()` → `Valid` while
+   inside the window, else `NeedsLogin { login_url }`. `secret-store` gained
+   `SharedSecretStore` (`Arc<Mutex<dyn SecretStore + Send>>`) + `shared()`.
+   `tradebot login` wired (opens store, prints URL, seals token). Prompt helpers
+   factored into `operator-cli/src/prompt.rs`.
+5. **`feat/engine-reads`** — _in progress (demo-first slice, off `feat/session-auth`)._
+   `Engine` = `KiteClient` + `Arc<dyn TokenProvider>`. Six read services
+   (`positions/holdings/margins/orders/quote/order_status`), each authenticates
+   via `session` (→ `EngineError::NeedsLogin` when the token is stale) then
+   shapes one Kite read into a §5 view. `mcp-server`: `rmcp` 3.2 stdio server,
+   `tradebot-mcp serve --paper`, six read-only tools, passphrase from
+   `TRADEBOT_PASSPHRASE`. `--live` refused. `tradebot whoami` added on the prior
+   branch. **⇒ Milestone A** (Claude Desktop reads the live account).
+6. `feat/ledger` — SQLite schema, migrations, append/query API.
+7. `feat/guardrails` — policy engine + exhaustive unit tests (heaviest coverage).
+8. `feat/engine` (submit) — orchestration, reconciliation loop, `PaperExecutor`.
+9. `feat/telegram-confirm` — bot long-poll, inline buttons, nonce/TTL, fail-closed.
+10. `feat/mcp-server` (write) — `place_equity_order` / `cancel_order` tools.
+11. `feat/operator-cli` — `status` / `kill` / `resume` / `ledger` / `reconcile` /
     `confirm` / `reject`.
-11. `integration/mvp` — end-to-end paper-mode test, then → `main`.
+12. `integration/mvp` — end-to-end paper-mode test, then → `main`.
 
-3–6 can proceed in parallel after 1. 7 depends on 2/4/5/6. 8–10 depend on 7.
+Demo-first slice reorders this: 5 (reads) landed before ledger/guardrails so
+Milestone A ships first. 8 depends on 6/7; 9–11 depend on 8.
 
 ## Immediate blockers / setup needed
 
