@@ -1,0 +1,1 @@
+{ "status": "error", "message": "The trading symbol NOSUCH is not valid.", "error_type": "InputException" }

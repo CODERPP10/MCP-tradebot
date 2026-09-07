@@ -1,0 +1,4 @@
+instrument_token,exchange_token,tradingsymbol,name,last_price,expiry,strike,tick_size,lot_size,instrument_type,segment,exchange
+408065,1594,INFY,"INFOSYS",0,,0,0.05,1,EQ,NSE,NSE
+2953217,11536,TCS,"TATA CONSULTANCY SERV LT",0,,0,0.05,1,EQ,NSE,NSE
+81153,317,BAJFINANCE,"BAJAJ FINANCE LIMITED",0,,0,0.05,1,EQ,NSE,NSE

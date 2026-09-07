@@ -1,0 +1,31 @@
+{
+  "status": "success",
+  "data": {
+    "net": [
+      {
+        "tradingsymbol": "INFY",
+        "exchange": "NSE",
+        "product": "CNC",
+        "quantity": 3,
+        "average_price": 1499.85,
+        "last_price": 1512.4,
+        "pnl": 37.65,
+        "buy_quantity": 3,
+        "sell_quantity": 0
+      }
+    ],
+    "day": [
+      {
+        "tradingsymbol": "INFY",
+        "exchange": "NSE",
+        "product": "CNC",
+        "quantity": 3,
+        "average_price": 1499.85,
+        "last_price": 1512.4,
+        "pnl": 37.65,
+        "buy_quantity": 3,
+        "sell_quantity": 0
+      }
+    ]
+  }
+}

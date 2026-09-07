@@ -1,0 +1,7 @@
+{
+  "status": "success",
+  "data": {
+    "NSE:INFY": { "instrument_token": 408065, "last_price": 1512.4 },
+    "NSE:TCS": { "instrument_token": 2953217, "last_price": 4198.1 }
+  }
+}
