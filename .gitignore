@@ -41,3 +41,5 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 *.sealed
 tradebot.db*
 nse_holidays_*.txt
+.tradebot/
+secrets.json

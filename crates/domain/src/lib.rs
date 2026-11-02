@@ -173,6 +173,19 @@ impl Reason {
     }
 }
 
+/// The outcome of a human approval request (DESIGN.md §2.7), reported by
+/// `telegram-confirm` or the `tradebot confirm`/`reject` CLI fallback and
+/// consumed by `engine::resume_confirmed`. Lives in `domain` (not in either
+/// crate) so `engine` and `telegram-confirm` can agree on it without either
+/// depending on the other — they are wired together at the `mcp-server` boot
+/// layer, not at the crate-dependency level.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConfirmOutcome {
+    Approved,
+    Rejected,
+    Timeout,
+}
+
 /// The outcome of `guardrails::evaluate`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "decision", rename_all = "SCREAMING_SNAKE_CASE")]

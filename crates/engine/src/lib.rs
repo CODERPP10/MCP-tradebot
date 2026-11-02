@@ -1,16 +1,49 @@
 //! The single choke point (DESIGN.md §2.6).
 //!
-//! Stub — implemented in `feat/engine`. The only crate that calls `kite-client`
-//! mutating methods. `submit()` unconditionally runs `guardrails::evaluate()`,
-//! writes a `submitting` ledger row before the broker call, and never
-//! auto-retries a mutating call.
+//! `submit()` (mutating) is still a stub — it lands with `feat/guardrails` +
+//! `feat/ledger`. What is implemented here is the **read side** (§2.6 "Read
+//! services"): [`Engine`] resolves the sealed access token via [`session`],
+//! installs it on the [`KiteClient`], calls a single read endpoint, and shapes
+//! the result into the §5 response views. No mutating Kite method is reachable
+//! from this path.
 
-use domain::OrderIntent;
+use std::sync::Arc;
+
+use guardrails::Policy;
+use kite_client::KiteClient;
+use ledger::Ledger;
+use session::{TokenProvider, TokenStatus};
+
+mod reconcile;
+mod submit;
+mod views;
+pub use domain::ConfirmOutcome;
+pub use ledger::Source as IntentSource;
+pub use reconcile::ReconcileReport;
+pub use views::{
+    HoldingRow, HoldingsView, MarginsView, OhlcView, OrderEvent, OrderRow, OrderStatusView,
+    OrdersView, PositionRow, PositionsView, QuoteView,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum EngineError {
-    #[error("engine is not implemented yet (feat/engine)")]
-    NotImplemented,
+    /// No usable access token — the caller must run the interactive login.
+    #[error("needs login: {login_url}")]
+    NeedsLogin { login_url: String },
+    /// A Kite call failed. String, not the `KiteError`, to keep the taxonomy
+    /// from leaking through the public API before it is shaped for tools.
+    #[error("kite call failed: {0}")]
+    Kite(String),
+    /// A read succeeded but returned nothing for the requested key.
+    #[error("no data for {0}")]
+    NotFound(String),
+    #[error("ledger error: {0}")]
+    Ledger(String),
+    /// Reconstructing an `OrderIntent` from stored ledger fields failed
+    /// (`resume_confirmed`) — should only happen if the ledger row itself is
+    /// corrupt, since everything written there was itself schema-validated.
+    #[error("invalid intent: {0}")]
+    InvalidIntent(String),
 }
 
 #[derive(Debug, Clone)]
@@ -28,6 +61,133 @@ pub enum SubmitOutcome {
     },
 }
 
-pub async fn submit(_intent: OrderIntent) -> Result<SubmitOutcome, EngineError> {
-    Err(EngineError::NotImplemented)
+/// Orchestration surface. Cheap to clone (shares the Kite client, token
+/// provider, ledger handle, and instrument cache).
+#[derive(Clone)]
+pub struct Engine {
+    kite: KiteClient,
+    tokens: Arc<dyn TokenProvider>,
+    ledger: Arc<Ledger>,
+    policy: Arc<Policy>,
+    instruments: Arc<submit::InstrumentCache>,
+    /// `EXCH:` prefix for bare symbols. v1 is NSE-equity only.
+    exchange: &'static str,
+    /// Test-only clock override for `AccountContext.now` (session-hours /
+    /// quote-age checks). `None` in production — always the real wall clock.
+    clock: Option<chrono::DateTime<chrono::FixedOffset>>,
+}
+
+impl Engine {
+    /// Read-only construction (no mutating path). Used where a caller — e.g.
+    /// a pure read-side test or tool — has no ledger/policy to wire up.
+    pub fn new(kite: KiteClient, tokens: Arc<dyn TokenProvider>) -> Self {
+        Self::with_submit(
+            kite,
+            tokens,
+            Arc::new(Ledger::open_in_memory().expect("in-memory ledger open should never fail")),
+            Arc::new(Policy::default()),
+        )
+    }
+
+    /// Full construction — required to reach `submit`/`resume_confirmed`/`cancel`.
+    pub fn with_submit(
+        kite: KiteClient,
+        tokens: Arc<dyn TokenProvider>,
+        ledger: Arc<Ledger>,
+        policy: Arc<Policy>,
+    ) -> Self {
+        Self {
+            kite,
+            tokens,
+            ledger,
+            policy,
+            instruments: Arc::new(submit::InstrumentCache::new()),
+            exchange: "NSE",
+            clock: None,
+        }
+    }
+
+    /// Pin `AccountContext.now` for deterministic tests of the session-hours
+    /// and quote-age guardrail checks. Not for production use.
+    ///
+    /// Caveat for test authors: ledger rows are still stamped with the real
+    /// wall clock, so `seconds_since_last_order` is computed against a `now`
+    /// in the past, goes negative, and clamps to `0` — which trips the
+    /// rate-limit check. A fixed-clock test can therefore submit only one
+    /// order per ledger; give each scenario a fresh `Ledger`.
+    pub fn with_fixed_clock(mut self, now: chrono::DateTime<chrono::FixedOffset>) -> Self {
+        self.clock = Some(now);
+        self
+    }
+
+    /// Resolve the sealed token and install it on the Kite client, or return
+    /// `NeedsLogin`. Every read call funnels through this first.
+    async fn authenticate(&self) -> Result<(), EngineError> {
+        match self
+            .tokens
+            .access_token()
+            .await
+            .map_err(|e| EngineError::Kite(e.to_string()))?
+        {
+            TokenStatus::Valid(tok) => {
+                self.kite.set_access_token(tok).await;
+                Ok(())
+            }
+            TokenStatus::NeedsLogin(n) => Err(EngineError::NeedsLogin {
+                login_url: n.login_url,
+            }),
+        }
+    }
+
+    // ---- read services (§2.6) -------------------------------------------
+
+    pub async fn positions(&self) -> Result<PositionsView, EngineError> {
+        self.authenticate().await?;
+        let d = self.kite.positions().await.map_err(kite_err)?;
+        Ok(PositionsView::from(d))
+    }
+
+    pub async fn holdings(&self) -> Result<HoldingsView, EngineError> {
+        self.authenticate().await?;
+        let h = self.kite.holdings().await.map_err(kite_err)?;
+        Ok(HoldingsView::from(h))
+    }
+
+    pub async fn margins(&self) -> Result<MarginsView, EngineError> {
+        self.authenticate().await?;
+        let m = self.kite.margins_equity().await.map_err(kite_err)?;
+        Ok(MarginsView::from(m))
+    }
+
+    pub async fn orders(&self) -> Result<OrdersView, EngineError> {
+        self.authenticate().await?;
+        let o = self.kite.orders().await.map_err(kite_err)?;
+        Ok(OrdersView::from(o))
+    }
+
+    /// `tradingsymbol` is a bare NSE symbol, e.g. `"INFY"`.
+    pub async fn quote(&self, tradingsymbol: &str) -> Result<QuoteView, EngineError> {
+        self.authenticate().await?;
+        let key = format!("{}:{}", self.exchange, tradingsymbol.trim().to_uppercase());
+        let map = self.kite.quote(&[key.as_str()]).await.map_err(kite_err)?;
+        map.into_iter()
+            .next()
+            .map(|(_, q)| QuoteView::from(q))
+            .ok_or(EngineError::NotFound(key))
+    }
+
+    pub async fn order_status(&self, order_id: &str) -> Result<OrderStatusView, EngineError> {
+        self.authenticate().await?;
+        let history = self
+            .kite
+            .order_history(order_id.trim())
+            .await
+            .map_err(kite_err)?;
+        OrderStatusView::from_history(history)
+            .ok_or_else(|| EngineError::NotFound(order_id.to_string()))
+    }
+}
+
+fn kite_err(e: kite_client::KiteError) -> EngineError {
+    EngineError::Kite(e.to_string())
 }
