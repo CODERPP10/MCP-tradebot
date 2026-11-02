@@ -2,7 +2,8 @@
 //! `engine` read view straight to JSON text. No trading logic, no `kite-client`
 //! use, and — in this milestone — no mutating tools at all.
 
-use engine::{Engine, EngineError};
+use domain::{Exchange, Money, OrderIntent, OrderType, Product, Quantity, Side, Validity, Variety};
+use engine::{Engine, EngineError, IntentSource, SubmitOutcome};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{CallToolResult, ContentBlock, Implementation, ServerCapabilities, ServerInfo};
 use rmcp::{schemars, tool, tool_handler, tool_router, ErrorData as McpError, ServerHandler};
@@ -25,10 +26,94 @@ pub struct OrderIdArgs {
     pub order_id: String,
 }
 
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct PlaceEquityOrderArgs {
+    /// NSE equity trading symbol, e.g. `"INFY"`.
+    pub tradingsymbol: String,
+    pub side: OrderSide,
+    /// Whole shares, must be > 0.
+    pub quantity: u32,
+    /// Rupees. Must be within the policy's price band of the live LTP.
+    pub limit_price: f64,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum OrderSide {
+    Buy,
+    Sell,
+}
+
 #[tool_router]
 impl Tradebot {
     pub fn new(engine: Engine) -> Self {
         Self { engine }
+    }
+
+    #[tool(
+        description = "Place an NSE equity CNC LIMIT order (DAY validity). Every order is \
+                          evaluated by the guardrail policy engine first; most orders also \
+                          require human approval via Telegram before anything reaches the \
+                          broker. Returns immediately with status 'accepted' (paper-filled), \
+                          'pending_confirmation' (poll get_order_status with ref_id), or \
+                          'rejected' (see reasons)."
+    )]
+    async fn place_equity_order(
+        &self,
+        Parameters(args): Parameters<PlaceEquityOrderArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let quantity = match Quantity::new(args.quantity) {
+            Ok(q) => q,
+            Err(e) => {
+                let body = serde_json::json!({"status": "rejected", "ref_id": null, "order_id": null,
+                    "reasons": [{"code": "ORDER_SHAPE", "detail": e.to_string()}]});
+                return Ok(CallToolResult::success(vec![ContentBlock::text(
+                    body.to_string(),
+                )]));
+            }
+        };
+        let intent = OrderIntent {
+            tradingsymbol: args.tradingsymbol,
+            exchange: Exchange::Nse,
+            side: match args.side {
+                OrderSide::Buy => Side::Buy,
+                OrderSide::Sell => Side::Sell,
+            },
+            quantity,
+            product: Product::Cnc,
+            variety: Variety::Regular,
+            order_type: OrderType::Limit,
+            validity: Validity::Day,
+            limit_price: Some(Money::from_paise((args.limit_price * 100.0).round() as i64)),
+        };
+        match self.engine.submit(intent, IntentSource::Mcp).await {
+            Ok(outcome) => Ok(CallToolResult::success(vec![ContentBlock::text(
+                submit_outcome_json(outcome).to_string(),
+            )])),
+            Err(EngineError::NeedsLogin { login_url }) => {
+                Ok(CallToolResult::success(vec![ContentBlock::text(
+                    serde_json::json!({"error": "NEEDS_LOGIN", "login_url": login_url}).to_string(),
+                )]))
+            }
+            Err(e) => Err(McpError::internal_error(e.to_string(), None)),
+        }
+    }
+
+    #[tool(
+        description = "Cancel an order by broker order_id. In paper mode, orders fill \
+                          immediately, so this will always report 'rejected' — there is \
+                          nothing open to cancel."
+    )]
+    async fn cancel_order(
+        &self,
+        Parameters(args): Parameters<OrderIdArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        match self.engine.cancel(&args.order_id).await {
+            Ok(outcome) => Ok(CallToolResult::success(vec![ContentBlock::text(
+                submit_outcome_json(outcome).to_string(),
+            )])),
+            Err(e) => Err(McpError::internal_error(e.to_string(), None)),
+        }
     }
 
     #[tool(
@@ -108,15 +193,34 @@ fn shape<T: serde::Serialize>(r: Result<T, EngineError>) -> Result<CallToolResul
     }
 }
 
+/// Shapes a `SubmitOutcome` into the DESIGN.md §5 `place_equity_order` /
+/// `cancel_order` response schema.
+fn submit_outcome_json(outcome: SubmitOutcome) -> serde_json::Value {
+    match outcome {
+        SubmitOutcome::Accepted { order_id, ref_id } => serde_json::json!({
+            "status": "accepted", "ref_id": ref_id, "order_id": order_id, "reasons": [],
+        }),
+        SubmitOutcome::Pending { ref_id } => serde_json::json!({
+            "status": "pending_confirmation", "ref_id": ref_id, "order_id": null, "reasons": [],
+        }),
+        SubmitOutcome::Rejected { ref_id, reasons } => serde_json::json!({
+            "status": "rejected", "ref_id": ref_id, "order_id": null, "reasons": reasons,
+        }),
+    }
+}
+
 #[tool_handler]
 impl ServerHandler for Tradebot {
     fn get_info(&self) -> ServerInfo {
         ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
             .with_server_info(Implementation::new("tradebot", env!("CARGO_PKG_VERSION")))
             .with_instructions(
-                "Read-only access to a personal Zerodha (Kite) account. All amounts are in \
-                 rupees, quantities in whole shares. No order-placing tools are available in \
-                 this build.",
+                "Access to a personal Zerodha (Kite) account, paper mode only. All amounts are \
+                 in rupees, quantities in whole shares. Orders are NSE equity CNC LIMIT DAY \
+                 only, evaluated by a guardrail policy engine and typically require human \
+                 approval via Telegram before they fill (simulated in paper mode) — \
+                 place_equity_order returns immediately; poll get_order_status or list_orders \
+                 with the returned ref_id.",
             )
     }
 }

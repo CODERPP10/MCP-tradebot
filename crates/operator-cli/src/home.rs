@@ -15,3 +15,8 @@ pub fn resolve(explicit: Option<PathBuf>) -> PathBuf {
 pub fn secret_store_path(home: &std::path::Path) -> PathBuf {
     home.join("secrets.json")
 }
+
+/// Path to the ledger database within a resolved home dir.
+pub fn ledger_db_path(home: &std::path::Path) -> PathBuf {
+    home.join("ledger.db")
+}

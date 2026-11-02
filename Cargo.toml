@@ -39,6 +39,8 @@ tempfile = "3"
 rpassword = "7"
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
 async-trait = "0.1"
+rusqlite = { version = "0.31", features = ["bundled"] }
+ulid = "1"
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }

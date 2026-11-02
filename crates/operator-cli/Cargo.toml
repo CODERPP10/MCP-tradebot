@@ -11,7 +11,10 @@ name = "tradebot"
 path = "src/main.rs"
 
 [dependencies]
+domain = { workspace = true }
+engine = { workspace = true }
 guardrails = { workspace = true }
+ledger = { workspace = true }
 secret-store = { workspace = true }
 session = { workspace = true }
 kite-client = { workspace = true }

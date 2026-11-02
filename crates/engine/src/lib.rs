@@ -9,11 +9,17 @@
 
 use std::sync::Arc;
 
-use domain::OrderIntent;
+use guardrails::Policy;
 use kite_client::KiteClient;
+use ledger::Ledger;
 use session::{TokenProvider, TokenStatus};
 
+mod reconcile;
+mod submit;
 mod views;
+pub use domain::ConfirmOutcome;
+pub use ledger::Source as IntentSource;
+pub use reconcile::ReconcileReport;
 pub use views::{
     HoldingRow, HoldingsView, MarginsView, OhlcView, OrderEvent, OrderRow, OrderStatusView,
     OrdersView, PositionRow, PositionsView, QuoteView,
@@ -31,8 +37,13 @@ pub enum EngineError {
     /// A read succeeded but returned nothing for the requested key.
     #[error("no data for {0}")]
     NotFound(String),
-    #[error("engine submit is not implemented yet (feat/guardrails)")]
-    NotImplemented,
+    #[error("ledger error: {0}")]
+    Ledger(String),
+    /// Reconstructing an `OrderIntent` from stored ledger fields failed
+    /// (`resume_confirmed`) — should only happen if the ledger row itself is
+    /// corrupt, since everything written there was itself schema-validated.
+    #[error("invalid intent: {0}")]
+    InvalidIntent(String),
 }
 
 #[derive(Debug, Clone)]
@@ -50,22 +61,63 @@ pub enum SubmitOutcome {
     },
 }
 
-/// Orchestration surface. Cheap to clone (shares the Kite client + token provider).
+/// Orchestration surface. Cheap to clone (shares the Kite client, token
+/// provider, ledger handle, and instrument cache).
 #[derive(Clone)]
 pub struct Engine {
     kite: KiteClient,
     tokens: Arc<dyn TokenProvider>,
+    ledger: Arc<Ledger>,
+    policy: Arc<Policy>,
+    instruments: Arc<submit::InstrumentCache>,
     /// `EXCH:` prefix for bare symbols. v1 is NSE-equity only.
     exchange: &'static str,
+    /// Test-only clock override for `AccountContext.now` (session-hours /
+    /// quote-age checks). `None` in production — always the real wall clock.
+    clock: Option<chrono::DateTime<chrono::FixedOffset>>,
 }
 
 impl Engine {
+    /// Read-only construction (no mutating path). Used where a caller — e.g.
+    /// a pure read-side test or tool — has no ledger/policy to wire up.
     pub fn new(kite: KiteClient, tokens: Arc<dyn TokenProvider>) -> Self {
+        Self::with_submit(
+            kite,
+            tokens,
+            Arc::new(Ledger::open_in_memory().expect("in-memory ledger open should never fail")),
+            Arc::new(Policy::default()),
+        )
+    }
+
+    /// Full construction — required to reach `submit`/`resume_confirmed`/`cancel`.
+    pub fn with_submit(
+        kite: KiteClient,
+        tokens: Arc<dyn TokenProvider>,
+        ledger: Arc<Ledger>,
+        policy: Arc<Policy>,
+    ) -> Self {
         Self {
             kite,
             tokens,
+            ledger,
+            policy,
+            instruments: Arc::new(submit::InstrumentCache::new()),
             exchange: "NSE",
+            clock: None,
         }
+    }
+
+    /// Pin `AccountContext.now` for deterministic tests of the session-hours
+    /// and quote-age guardrail checks. Not for production use.
+    ///
+    /// Caveat for test authors: ledger rows are still stamped with the real
+    /// wall clock, so `seconds_since_last_order` is computed against a `now`
+    /// in the past, goes negative, and clamps to `0` — which trips the
+    /// rate-limit check. A fixed-clock test can therefore submit only one
+    /// order per ledger; give each scenario a fresh `Ledger`.
+    pub fn with_fixed_clock(mut self, now: chrono::DateTime<chrono::FixedOffset>) -> Self {
+        self.clock = Some(now);
+        self
     }
 
     /// Resolve the sealed token and install it on the Kite client, or return
@@ -138,8 +190,4 @@ impl Engine {
 
 fn kite_err(e: kite_client::KiteError) -> EngineError {
     EngineError::Kite(e.to_string())
-}
-
-pub async fn submit(_intent: OrderIntent) -> Result<SubmitOutcome, EngineError> {
-    Err(EngineError::NotImplemented)
 }
