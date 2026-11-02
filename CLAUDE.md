@@ -12,9 +12,14 @@ TypeScript prototype was reference-only and is frozen on `archive/ts-prototype`
 
 ## Current state
 
-`feat/workspace-skeleton` (DESIGN.md §9 branch 1) in progress: cargo workspace,
-crate stubs, CI, `policy.toml` + `tradebot policy check`, domain types. Most crates
-are stubs that return a `NotImplemented` error / fail closed.
+**`STATUS.md` is the live record — read it before planning anything.**
+`HANDOFF.md` covers running this on a fresh machine (provisioning, env,
+the rules an autonomous agent must not break).
+
+Short version: `feat/engine-reads` carries the whole safety chain — ledger,
+all 11 guardrail checks, `engine::submit` + reconciliation, Telegram confirm
+with auto-relogin, 8 MCP tools, and the full `tradebot` operator CLI. Paper
+mode only; `--live` is refused in code. No live executor, no `modify_order`.
 
 ## Build & commands
 
